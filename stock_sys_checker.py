@@ -56,14 +56,14 @@ def get_own_data(equity_name, quandl_API_token):
     return data
 
 
-def define_gl():
+def define_gl(gl):
     '''
     Function returns Pandas dataframe where all transactions are stored 
     '''
     cols = ['id', 'stocks_number', 'open_price', 'open_value', 
             'open_commission', 'open_total', 'close_price', 'close_value',
             'close_commission', 'close_total']
-    transactions = pd.DataFrame(columns=cols)
+    transactions = pd.DataFrame(gl, columns=cols)
     return transactions
 
 class Budget:
@@ -102,6 +102,7 @@ class Transaction:
         Parameters:
         -----------
         comm - broker's commision. Default value for DM mBank
+        transation_gl - list to store transactions
         
         '''
         self.stocks_number = 0 # number of stocks bought
@@ -189,21 +190,21 @@ class Transaction:
         self.gl.append(row)
 
 
+# test of Budget and Transactions working
 budzet = Budget()
-#transactions = define_gl()
 gl = []
 for i in range(0,3):
     trans = Transaction(i, gl)
-    trans.open_transaction(5, 127)
-    #print('''
-    #      kupilem 10 akcji po 10 pln, cena akcjji: {}, prowizja: {}, next ID: {}
-    #      '''.format(trans.trans_value, trans.comm_open_value, trans.trans_number))
+    trans.open_transaction(5, 127) # pretending to buy 5 stocks per 127
     budzet.manage_amount(-trans.open_total)
     print('moj budzet to: {}'.format(budzet.equity))
-    trans.close_transaction(125)
+    trans.close_transaction(125) # pretending to sell 5 stocks per 125
     budzet.manage_amount(trans.close_total)
     print('moj budzet to: {}'.format(budzet.equity))
+transactions = define_gl(gl)
+print(transactions)
 
+# test of get_own_data working
 data = get_own_data('Amica', '8zKzKFh-8eePuNy9wpuP')  # , 'Pekao'
 data['fast_ma'] = data['close'].rolling(10).mean()
 data['slow_ma'] = data['close'].rolling(30).mean()
