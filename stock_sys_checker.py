@@ -102,6 +102,7 @@ class Transaction:
         Parameters:
         -----------
         comm - broker's commision. Default value for DM mBank
+        trans_numb - externally provided transaction ID
         transation_gl - list to store transactions
         
         '''
