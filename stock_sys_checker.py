@@ -258,18 +258,19 @@ def process_data(row):
     if not trans.in_transaction:
         if row['fast_ma'] > row['slow_ma']:
             #trans.in_transaction = True
-            trans.open_transaction(10, row['open'])
-            trans.set_sl(sl_type='percent', sl_factor=10, price=row['open'])
-            '''
-            trans_date = get_date_only(row)
-            print(
-                    '{}: fast_ma={}, slow_ma={}'.format(
-                            trans_date, row['fast_ma'], row['slow_ma']
-                            )
-                  )
-            print(trans_id)
-            '''
-            trans_id = trans_id + 1
+            if row['open'] != 0:
+                trans.open_transaction(10, row['open'])
+                trans.set_sl(sl_type='percent', sl_factor=10, price=row['open'])
+                '''
+                trans_date = get_date_only(row)
+                print(
+                        '{}: fast_ma={}, slow_ma={}'.format(
+                                trans_date, row['fast_ma'], row['slow_ma']
+                                )
+                      )
+                print(trans_id)
+                '''
+                trans_id = trans_id + 1
     else:
         #print('in transaction')
         if row['fast_ma'] < row['slow_ma']:
@@ -316,7 +317,7 @@ DATA.dropna()
 DATA.apply(process_data, axis=1)
 
 transactions = define_gl(GL)
-print(transactions)
+print('wynik zabaway: {}'.format(transactions['trans_result'].sum()))
 #print('trans_id = {}'.format(trans_id))
 #DATA['close'].loc['2019-01-03':].plot()
 #DATA['fast_ma'].loc['2019-01-03':].plot()
