@@ -129,6 +129,13 @@ class Transaction:
         self.in_transaction = False # transaction indicator
         self.gl = transaction_gl
 
+    def how_many_stocks(self, price, budget):
+        '''
+        Function returns how many stocks you can buy
+        '''
+        number = int((budget - budget * self.comm_rate) / price)
+        return number
+    
     def open_transaction(self, number, price, date):
         '''
         Method to buy stocks.
@@ -201,7 +208,7 @@ class Transaction:
             self.trans_result = self.close_total - self.open_total
             self.close_date = date
             self.register_transaction()
-            self.reset_values()
+            #self.reset_values()
 
     def reset_values(self):
         '''
@@ -274,19 +281,27 @@ def process_data(row):
         if row['fast_ma'] > row['slow_ma']:
             #trans.in_transaction = True
             if row['open'] != 0:
-                trans.open_transaction(10, row['open'], date=get_date_only(row))
-                trans.set_sl(sl_type='percent', sl_factor=10,
-                             price=row['open'], date=get_date_only(row))
-                '''
-                trans_date = get_date_only(row)
-                print(
-                        '{}: fast_ma={}, slow_ma={}'.format(
-                                trans_date, row['fast_ma'], row['slow_ma']
-                                )
-                      )
-                print(trans_id)
-                '''
-                trans_id = trans_id + 1
+                if BUDZET.equity > 3:
+                    stock_number = trans.how_many_stocks(row['open'],
+                                                         BUDZET.equity)
+                    if stock_number > 0:
+                        trans.open_transaction(stock_number, row['open'],
+                                               date=get_date_only(row))
+                        BUDZET.manage_amount(-trans.open_total)
+                        trans.set_sl(sl_type='percent', sl_factor=10,
+                                     price=row['open'], date=get_date_only(row))
+                        '''
+                        trans_date = get_date_only(row)
+                        print(
+                                '{}: fast_ma={}, slow_ma={}'.format(
+                                        trans_date, row['fast_ma'], row['slow_ma']
+                                        )
+                              )
+                        print(trans_id)
+                        '''
+                        trans_id = trans_id + 1
+                else:
+                    print('kupiłbym ale pieniadze sie skonczyły')
     else:
         #print('in transaction')
         if row['fast_ma'] < row['slow_ma']:
@@ -296,6 +311,9 @@ def process_data(row):
             '''print('price {} lower than sl {}, closing'.format(
                     row['low'], trans.SL))'''
             trans.close_transaction(price=trans.SL, date=get_date_only(row))
+            BUDZET.manage_amount(trans.close_total)
+            trans.reset_values()
+            print('budzet po zamknieciu transakcji: {}'.format(BUDZET.equity))
         else:
             #print('checking if rise sl')
             trans.set_sl(sl_type='percent', sl_factor=10,
