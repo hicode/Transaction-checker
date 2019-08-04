@@ -62,9 +62,10 @@ def define_gl(gl):
     '''
     Function returns Pandas dataframe where all transactions are stored
     '''
-    cols = ['id', 'stocks_number', 'open_price', 'open_value',
-            'open_commission', 'open_total', 'SL', 'close_price',
-            'close_value', 'close_commission', 'close_total', 'trans_result']
+    cols = ['id', 'open_date', 'stocks_number', 'open_price', 'open_value',
+            'open_commission', 'open_total', 'SL_date', 'SL', 'close_date',
+            'close_price', 'close_value', 'close_commission', 'close_total',
+            'trans_result']
     transactions = pd.DataFrame(gl, columns=cols)
     return transactions
 
@@ -110,7 +111,9 @@ class Transaction:
 
         self.stocks_number = 0 # number of stocks bought
         self.open_price = 0 # price for opening the transaction
+        self.open_date = '' # stores the open date of transaction
         self.close_price = 0 # price for closing the transaction
+        self.close_date = '' # stores the close date
         self.comm_rate = comm # broker's commision
         self.open_value = 0 # worth of transaction without commission
         self.close_value = 0
@@ -120,18 +123,20 @@ class Transaction:
         self.close_total = 0
         self.trans_result = 0
         self.SL = 0 # if below this value, stocks are sold Stop Loss
+        self.stop_loss_date = '' # stores the stop loss date
         self.trans_id = trans_numb # ID of the transaction
         # self.trans_number = self.trans_number + 1 # ID for next transaction
         self.in_transaction = False # transaction indicator
         self.gl = transaction_gl
 
-    def open_transaction(self, number, price):
+    def open_transaction(self, number, price, date):
         '''
         Method to buy stocks.
         Parameters:
         -----------
         numb      - number of stocks bought in single transaction
         buy_price - stock's buy price
+        date      - date and time of open
         '''
         if not self.in_transaction:
             self.stocks_number = number
@@ -142,9 +147,10 @@ class Transaction:
                 self.comm_open_value = 3
             self.open_total = self.open_value + self.comm_open_value
             self.in_transaction = True
+            self.open_date = date
             self.register_transaction()
 
-    def set_sl(self, sl_type, sl_factor, price):
+    def set_sl(self, sl_type, sl_factor, price, date):
         '''
         Functions sets the SL on the price.
         Parameters:
@@ -156,6 +162,7 @@ class Transaction:
                     if sl_type = 'percent' it is just the value of the
                     percent, between 0 and 100
         price     - current price
+        date      - date time of SL
         '''
         if sl_type not in ['atr', 'percent']:
             print('Value {} of sl_type is not appropriate. Use "atr" or \
@@ -177,9 +184,10 @@ class Transaction:
                     if new_sl > self.SL:
                         self.SL = new_sl
                         #print('SL set to {}'.format(self.SL))
+                        self.stop_loss_date = date
                         self.register_transaction()
 
-    def close_transaction(self, price):
+    def close_transaction(self, price, date):
         '''
         Method to close the transaction
         '''
@@ -191,6 +199,7 @@ class Transaction:
                 self.comm_close_value = 3
             self.close_total = self.close_value - self.comm_close_value
             self.trans_result = self.close_total - self.open_total
+            self.close_date = date
             self.register_transaction()
             self.reset_values()
 
@@ -200,7 +209,9 @@ class Transaction:
         '''
         self.stocks_number = 0
         self.open_price = 0
+        self.open_date = ''
         self.close_price = 0
+        self.close_date = ''
         self.open_value = 0
         self.close_value = 0
         self.comm_open_value = 0
@@ -209,6 +220,7 @@ class Transaction:
         self.close_total = 0
         self.trans_result = 0
         self.SL = 0
+        self.stop_loss_date = ''
         self.in_transaction = False
         self.trans_id = self.trans_id + 1
 
@@ -217,22 +229,25 @@ class Transaction:
         Function registers the transaction details in the general ledger.
         '''
         print('''
-              Transakcja numer: {}, ilosc: {}, cena otwarcia {},
-              wartosc otwarcia: {}, prowizja otwarcia: {}, koszt otwarcia {},
-              SL: {}, cena zamkn: {}, wartosc zamkn: {}, prowizja zamkn: {}, 
+              Transakcja numer: {}, data otwarcia: {} ilosc akcji: {},
+              cena otwarcia {}, wartosc otwarcia: {}, prowizja otwarcia: {},
+              koszt otwarcia {}, data stopa: {}, SL: {}, data zamknięcia: {},
+              cena zamkn: {}, wartosc zamkn: {}, prowizja zamkn: {}, 
               koszt_zamkn: {}
-              '''.format(self.trans_id, self.stocks_number,
-                         self.open_price, self.open_value,
-                         self.comm_open_value, self.open_total, self.SL,
-                         self.close_price, self.close_value,
+              '''.format(self.trans_id, self.open_date, self.stocks_number,
+                         self.open_price, self.open_value, 
+                         self.comm_open_value, self.open_total,
+                         self.stop_loss_date, self.SL,
+                         self.close_date, self.close_price, self.close_value,
                          self.comm_close_value, self.close_total
                          )
               )
         row = [
-               self.trans_id, self.stocks_number, self.open_price, 
-               self.open_value, self.comm_open_value, self.open_total, self.SL,
-               self.close_price, self.close_value, self.comm_close_value, 
-               self.close_total, self.trans_result
+               self.trans_id, self.open_date, self.stocks_number, 
+               self.open_price, self.open_value, self.comm_open_value,
+               self.open_total, self.stop_loss_date, self.SL,
+               self.close_date, self.close_price, self.close_value,
+               self.comm_close_value, self.close_total, self.trans_result
                ]
         self.gl.append(row)
 
@@ -259,8 +274,9 @@ def process_data(row):
         if row['fast_ma'] > row['slow_ma']:
             #trans.in_transaction = True
             if row['open'] != 0:
-                trans.open_transaction(10, row['open'])
-                trans.set_sl(sl_type='percent', sl_factor=10, price=row['open'])
+                trans.open_transaction(10, row['open'], date=get_date_only(row))
+                trans.set_sl(sl_type='percent', sl_factor=10,
+                             price=row['open'], date=get_date_only(row))
                 '''
                 trans_date = get_date_only(row)
                 print(
@@ -279,10 +295,11 @@ def process_data(row):
         if trans.SL > row['low']:
             '''print('price {} lower than sl {}, closing'.format(
                     row['low'], trans.SL))'''
-            trans.close_transaction(price=trans.SL)
+            trans.close_transaction(price=trans.SL, date=get_date_only(row))
         else:
             #print('checking if rise sl')
-            trans.set_sl(sl_type='percent', sl_factor=10, price=row['close'])
+            trans.set_sl(sl_type='percent', sl_factor=10,
+                         price=row['close'], date=get_date_only(row))
     
 
 # test of Budget and Transactions working
